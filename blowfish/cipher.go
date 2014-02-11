@@ -24,7 +24,6 @@ type KeySizeError int
 func (k KeySizeError) Error() string {
 	return "crypto/blowfish: invalid key size " + strconv.Itoa(int(k))
 }
-
 // NewCipher creates and returns a Cipher.
 // The key argument should be the Blowfish key, 4 to 56 bytes.
 func NewCipher(key []byte) (*Cipher, error) {
@@ -51,6 +50,18 @@ func NewSaltedCipher(key, salt []byte) (*Cipher, error) {
 	initCipher(key, &result)
 	expandKeyWithSalt(key, salt, &result)
 	return &result, nil
+}
+
+// InitSaltedCipher works like NewSaltedCipher, but does not allocate a new
+// Cipher.
+func (c *Cipher) InitSaltedCipher(key, salt []byte) error {
+	k := len(key)
+	if k < 4 {
+		return KeySizeError(k)
+	}
+	initCipher(key, c)
+	expandKeyWithSalt(key, salt, c)
+	return nil
 }
 
 // BlockSize returns the Blowfish block size, 8 bytes.
