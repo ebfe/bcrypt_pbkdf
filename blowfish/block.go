@@ -47,6 +47,20 @@ func ExpandKey(key []byte, c *Cipher) {
 	}
 }
 
+func bytes2word(data []byte, pos *int) uint32 {
+	t := uint32(0)
+	j := *pos
+	for i := 0; i < 4; i++ {
+		if j >= len(data) {
+			j = 0
+		}
+		t = t<<8 | uint32(data[j])
+		j++
+	}
+	*pos = j
+	return t
+}
+
 // This is similar to ExpandKey, but folds the salt during the key
 // schedule. While ExpandKey is essentially expandKeyWithSalt with an all-zero
 // salt passed in, reusing ExpandKey turns out to be a place of inefficiency
@@ -54,86 +68,43 @@ func ExpandKey(key []byte, c *Cipher) {
 func expandKeyWithSalt(key []byte, salt []byte, c *Cipher) {
 	j := 0
 	for i := 0; i < 18; i++ {
-		var d uint32
-		for k := 0; k < 4; k++ {
-			d = d<<8 | uint32(key[j])
-			j++
-			if j >= len(key) {
-				j = 0
-			}
-		}
+		d := bytes2word(key, &j)
 		c.p[i] ^= d
 	}
 
-	j = 0
-	var expandedSalt [4]uint32
-	for i := range expandedSalt {
-		var d uint32
-		for k := 0; k < 4; k++ {
-			d = d<<8 | uint32(salt[j])
-			j++
-			if j >= len(salt) {
-				j = 0
-			}
-		}
-		expandedSalt[i] = d
-	}
-
 	var l, r uint32
+	j = 0
+
 	for i := 0; i < 18; i += 2 {
-		l ^= expandedSalt[i&2]
-		r ^= expandedSalt[(i&2)+1]
+		l ^= bytes2word(salt, &j)
+		r ^= bytes2word(salt, &j)
 		l, r = encryptBlock(l, r, c)
 		c.p[i], c.p[i+1] = l, r
 	}
 
-	for i := 0; i < 256; i += 4 {
-		l ^= expandedSalt[2]
-		r ^= expandedSalt[3]
+	for i := 0; i < 256; i += 2 {
+		l ^= bytes2word(salt, &j)
+		r ^= bytes2word(salt, &j)
 		l, r = encryptBlock(l, r, c)
 		c.s0[i], c.s0[i+1] = l, r
-
-		l ^= expandedSalt[0]
-		r ^= expandedSalt[1]
-		l, r = encryptBlock(l, r, c)
-		c.s0[i+2], c.s0[i+3] = l, r
-
 	}
-
-	for i := 0; i < 256; i += 4 {
-		l ^= expandedSalt[2]
-		r ^= expandedSalt[3]
+	for i := 0; i < 256; i += 2 {
+		l ^= bytes2word(salt, &j)
+		r ^= bytes2word(salt, &j)
 		l, r = encryptBlock(l, r, c)
 		c.s1[i], c.s1[i+1] = l, r
-
-		l ^= expandedSalt[0]
-		r ^= expandedSalt[1]
-		l, r = encryptBlock(l, r, c)
-		c.s1[i+2], c.s1[i+3] = l, r
 	}
-
-	for i := 0; i < 256; i += 4 {
-		l ^= expandedSalt[2]
-		r ^= expandedSalt[3]
+	for i := 0; i < 256; i += 2 {
+		l ^= bytes2word(salt, &j)
+		r ^= bytes2word(salt, &j)
 		l, r = encryptBlock(l, r, c)
 		c.s2[i], c.s2[i+1] = l, r
-
-		l ^= expandedSalt[0]
-		r ^= expandedSalt[1]
-		l, r = encryptBlock(l, r, c)
-		c.s2[i+2], c.s2[i+3] = l, r
 	}
-
-	for i := 0; i < 256; i += 4 {
-		l ^= expandedSalt[2]
-		r ^= expandedSalt[3]
+	for i := 0; i < 256; i += 2 {
+		l ^= bytes2word(salt, &j)
+		r ^= bytes2word(salt, &j)
 		l, r = encryptBlock(l, r, c)
 		c.s3[i], c.s3[i+1] = l, r
-
-		l ^= expandedSalt[0]
-		r ^= expandedSalt[1]
-		l, r = encryptBlock(l, r, c)
-		c.s3[i+2], c.s3[i+3] = l, r
 	}
 }
 
