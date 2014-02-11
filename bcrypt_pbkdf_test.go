@@ -2,6 +2,7 @@ package bcrypt_pbkdf
 
 import (
 	"bytes"
+	"github.com/ebfe/bcrypt_pbkdf/blowfish"
 	"testing"
 )
 
@@ -112,8 +113,10 @@ var keytests = []keytestcase{
 }
 
 func TestBcryptHash(t *testing.T) {
+	cipher := &blowfish.Cipher{}
+	out := make([]byte, bcryptHashSize)
 	for i, tc := range hashtests {
-		out := bcryptHash(tc.hpass, tc.hsalt)
+		bcryptHash(cipher, tc.hpass, tc.hsalt, out)
 		if !bytes.Equal(out, tc.out) {
 			t.Errorf("[%d] bcrypt_hash\nexpected %x\ngot      %x\n", i, tc.out, out)
 		}

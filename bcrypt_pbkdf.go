@@ -1,4 +1,4 @@
-// Package bcrypt_pbkdf provides an implementation of OpenBSD's bcrypt_pbkdf(3)
+// Package bcrypt_pbkdf implements OpenBSD's bcrypt_pbkdf(3)
 package bcrypt_pbkdf
 
 import (
@@ -31,8 +31,8 @@ const (
 	magic          = "OxychromaticBlowfishSwatDynamite"
 )
 
-func bcryptHash(hpass, hsalt []byte) []byte {
-	bf, err := blowfish.NewSaltedCipher(hpass, hsalt)
+func bcryptHash(bf *blowfish.Cipher, hpass, hsalt, out []byte) {
+	err := bf.InitSaltedCipher(hpass, hsalt)
 	if err != nil {
 		panic(err)
 	}
@@ -42,25 +42,25 @@ func bcryptHash(hpass, hsalt []byte) []byte {
 		blowfish.ExpandKey(hpass, bf)
 	}
 
-	cipher := []byte(magic)
+	copy(out, magic)
 
 	for i := 0; i < 64; i++ {
 		for j := 0; j < bcryptHashSize/blowfish.BlockSize; j++ {
-			bf.Encrypt(cipher[j*blowfish.BlockSize:], cipher[j*blowfish.BlockSize:])
+			bf.Encrypt(out[j*blowfish.BlockSize:], out[j*blowfish.BlockSize:])
 		}
 	}
 
-	for i := 0; i < len(cipher); i += 4 {
-		cipher[i+0], cipher[i+1], cipher[i+2], cipher[i+3] = cipher[i+3], cipher[i+2], cipher[i+1], cipher[i+0]
+	for i := 0; i < len(out); i += 4 {
+		out[i+0], out[i+1], out[i+2], out[i+3] = out[i+3], out[i+2], out[i+1], out[i+0]
 	}
-
-	return cipher
 }
 
 func bcryptPBKDF(password, salt []byte, rounds, keyLen int) []byte {
 	countsalt := make([]byte, 4)
 	out := make([]byte, bcryptHashSize)
+	tmp := make([]byte, bcryptHashSize)
 	key := make([]byte, keyLen)
+	cipher := &blowfish.Cipher{}
 
 	stride := (keyLen + bcryptHashSize - 1) / bcryptHashSize
 	amt := (keyLen + stride - 1) / stride
@@ -79,14 +79,14 @@ func bcryptPBKDF(password, salt []byte, rounds, keyLen int) []byte {
 		sha.Write(countsalt)
 		hsalt := sha.Sum(nil)
 
-		tmp := bcryptHash(hpassword, hsalt)
+		bcryptHash(cipher, hpassword, hsalt, tmp)
 		copy(out, tmp)
 
 		for i := 1; i < rounds; i++ {
 			sha.Reset()
 			sha.Write(tmp)
-			hsalt := sha.Sum(nil)
-			tmp = bcryptHash(hpassword, hsalt)
+			hsalt = sha.Sum(nil)
+			bcryptHash(cipher, hpassword, hsalt, tmp)
 			for i := range out {
 				out[i] ^= tmp[i]
 			}
@@ -104,6 +104,7 @@ func bcryptPBKDF(password, salt []byte, rounds, keyLen int) []byte {
 
 	return key
 }
+
 func Key(password, salt []byte, rounds, keyLen int) []byte {
 	return bcryptPBKDF(password, salt, rounds, keyLen)
 }
