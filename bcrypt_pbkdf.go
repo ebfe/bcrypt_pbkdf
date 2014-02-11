@@ -57,6 +57,8 @@ func bcryptHash(bf *blowfish.Cipher, hpass, hsalt, out []byte) {
 
 func bcryptPBKDF(password, salt []byte, rounds, keyLen int) []byte {
 	countsalt := make([]byte, 4)
+	hpass := make([]byte, sha512.Size)
+	hsalt := make([]byte, sha512.Size)
 	out := make([]byte, bcryptHashSize)
 	tmp := make([]byte, bcryptHashSize)
 	key := make([]byte, keyLen)
@@ -67,7 +69,7 @@ func bcryptPBKDF(password, salt []byte, rounds, keyLen int) []byte {
 
 	sha := sha512.New()
 	sha.Write(password)
-	hpassword := sha.Sum(nil)
+	hpass = sha.Sum(hpass[:0])
 
 	for count := uint32(1); keyLen > 0; count++ {
 		sha.Reset()
@@ -77,16 +79,16 @@ func bcryptPBKDF(password, salt []byte, rounds, keyLen int) []byte {
 		countsalt[2] = byte(count >> 8)
 		countsalt[3] = byte(count)
 		sha.Write(countsalt)
-		hsalt := sha.Sum(nil)
+		hsalt = sha.Sum(hsalt[:0])
 
-		bcryptHash(cipher, hpassword, hsalt, tmp)
+		bcryptHash(cipher, hpass, hsalt, tmp)
 		copy(out, tmp)
 
 		for i := 1; i < rounds; i++ {
 			sha.Reset()
 			sha.Write(tmp)
-			hsalt = sha.Sum(nil)
-			bcryptHash(cipher, hpassword, hsalt, tmp)
+			hsalt = sha.Sum(hsalt[:0])
+			bcryptHash(cipher, hpass, hsalt, tmp)
 			for i := range out {
 				out[i] ^= tmp[i]
 			}
