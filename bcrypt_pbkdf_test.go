@@ -128,3 +128,34 @@ func TestKey(t *testing.T) {
 		}
 	}
 }
+
+func benchKey(b *testing.B, pass, salt []byte, rounds, keyLen int) {
+	for i := 0; i < b.N; i++ {
+		Key(pass, salt, rounds, keyLen)
+	}
+}
+
+func BenchmarkKey8_64(b *testing.B) {
+	benchKey(b, []byte("password"), []byte("salt"), 8, 64)
+}
+
+func BenchmarkKey8_128(b *testing.B) {
+	benchKey(b, []byte("password"), []byte("salt"), 8, 128)
+}
+
+
+func BenchmarkKey16_64(b *testing.B) {
+	benchKey(b, []byte("password"), []byte("salt"), 16, 64)
+}
+
+func BenchmarkKey16_128(b *testing.B) {
+	benchKey(b, []byte("password"), []byte("salt"), 16, 128)
+}
+
+func BenchmarkKey32_64(b *testing.B) {
+	benchKey(b, []byte("password"), []byte("salt"), 32, 64)
+}
+
+func BenchmarkKey32_128(b *testing.B) {
+	benchKey(b, []byte("password"), []byte("salt"), 32, 128)
+}
